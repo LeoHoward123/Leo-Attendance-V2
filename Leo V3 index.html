@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>School RFID Attendance</title>
+
+    <style>
+
+        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; background-color: #f4f4f9; }
+
+        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        h1 { color: #333; text-align: center; }
+
+        
+
+        /* RFID Input Styling */
+
+        input[type="text"] { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #ddd; border-radius: 4px; font-size: 16px; }
+
+        input[type="text"]:focus { border-color: #4CAF50; outline: none; }
+
+        
+
+        /* Status Messages */
+
+        #status { margin-top: 1rem; padding: 10px; border-radius: 4px; text-align: center; display: none; }
+
+        .success { background-color: #d4edda; color: #155724; }
+
+        .error { background-color: #f8d7da; color: #721c24; }
+
+
+
+        /* Table Styling */
+
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
+
+        th { background-color: #4CAF50; color: white; }
+
+    </style>
+
+</head>
+
+<body>
+
+
+
+<div class="container">
+
+    <h1>🏫 RFID Attendance Check-in</h1>
+
+    
+
+    <p>Scan Card Below:</p>
+
+    <input type="text" id="rfidInput" placeholder="Click here and scan RFID tag..." autofocus autocomplete="off">
+
+    
+
+    <div id="status"></div>
+
+
+
+    <h3>Attendance Log (Today)</h3>
+
+    <table id="attendanceTable">
+
+        <thead>
+
+            <tr>
+
+                <th>Time</th>
+
+                <th>Student ID (Tag)</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            </tbody>
+
+    </table>
+
+</div>
+
+
+
+<script type="module">
+
+  // 1. Import the functions you need from the SDKs you need
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+
+  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp } 
+
+    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+
+
+  // 2. PASTE YOUR CONFIGURATION HERE
+
+  // (Students must replace this part with their own keys from Step A)
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDF9HIaB6xClUsjWSSjGXMww09imN-3HAc",
+  authDomain: "attendance-project-2-8336f.firebaseapp.com",
+  projectId: "attendance-project-2-8336f",
+  storageBucket: "attendance-project-2-8336f.firebasestorage.app",
+  messagingSenderId: "402130819432",
+  appId: "1:402130819432:web:11fba09acb0e76702e9edd"
+};
+
+
+
+  // 3. Initialize Firebase
+
+  const app = initializeApp(firebaseConfig);
+
+  const db = getFirestore(app);
+
+
+
+  // 4. LOGIC: Handling the RFID Scan
+
+  const rfidInput = document.getElementById('rfidInput');
+
+  const statusDiv = document.getElementById('status');
+
+
+
+  // Listen for the "Enter" key (which RFID scanners press automatically after scanning)
+
+  rfidInput.addEventListener('keypress', async (e) => {
+
+      if (e.key === 'Enter') {
+
+          const tagId = rfidInput.value.trim();
+
+          
+
+          if (tagId) {
+
+              await markAttendance(tagId);
+
+              rfidInput.value = ''; // Clear input for next student
+
+          }
+
+      }
+
+  });
+
+
+
+  // Function to save data to Firestore
+
+  async function markAttendance(id) {
+
+      try {
+
+          // "attendance" is the name of the collection in the database
+
+          await addDoc(collection(db, "attendance"), {
+
+              tag_id: id,
+
+              timestamp: serverTimestamp(), // Uses Google's server time
+
+              device: "Web Terminal 1"
+
+          });
+
+          showStatus(`✅ Success! ID ${id} recorded.`, "success");
+
+      } catch (e) {
+
+          console.error("Error adding document: ", e);
+
+          showStatus("❌ Error saving data. Check console.", "error");
+
+      }
+
+  }
+
+
+
+  // Helper to show messages
+
+  function showStatus(msg, type) {
+
+      statusDiv.textContent = msg;
+
+      statusDiv.className = type;
+
+      statusDiv.style.display = 'block';
+
+      setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
+
+  }
+
+
+
+  // 5. LOGIC: Real-time Listener (The "Magic" Part)
+
+  // This runs whenever the database changes (someone scans a card)
+
+  const q = query(collection(db, "attendance"), orderBy("timestamp", "desc"), limit(10));
+
+  
+
+  onSnapshot(q, (snapshot) => {
+
+      const tbody = document.querySelector('#attendanceTable tbody');
+
+      tbody.innerHTML = ''; // Clear table to rebuild it
+
+      
+
+      snapshot.forEach((doc) => {
+
+          const data = doc.data();
+
+          // Convert Firestore timestamp to readable time
+
+          let dateStr = "Just now";
+
+          if (data.timestamp) dateStr = data.timestamp.toDate().toLocaleTimeString();
+
+
+
+          const row = `<tr>
+
+              <td>${dateStr}</td>
+
+              <td>${data.tag_id}</td>
+
+          </tr>`;
+
+          tbody.innerHTML += row;
+
+      });
+
+  });
+
+
+
+</script>
+
+
+
+</body>
+
+</html>
